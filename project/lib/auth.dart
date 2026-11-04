@@ -1,3 +1,4 @@
+import 'auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'account.dart';
@@ -39,12 +40,12 @@ class SplashScreen extends StatelessWidget {
                       width: 36,
                       height: 4,
                       decoration: BoxDecoration(
-                          color: C.line, borderRadius: BorderRadius.circular(4))),
+                          color: const Color.fromARGB(255, 21, 43, 72), borderRadius: BorderRadius.circular(4))),
                   const SizedBox(height: 22),
                   const Text.rich(
                     TextSpan(children: [
-                      TextSpan(text: 'eCup', style: TextStyle(color: C.navy)),
-                      TextSpan(text: 'Fish', style: TextStyle(color: C.amber)),
+                      TextSpan(text: 'e', style: TextStyle(color: C.amber)),
+                      TextSpan(text: 'CupFish', style: TextStyle(color: C.navy)),
                     ]),
                     style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800),
                   ),
@@ -78,6 +79,7 @@ void _enterApp(BuildContext context) => Navigator.pushAndRemoveUntil(
 // ───────────── Masuk Akun ─────────────
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
   @override
   State<LoginScreen> createState() => _LoginState();
 }
@@ -87,6 +89,7 @@ class _LoginState extends State<LoginScreen> {
   final pass = TextEditingController();
   String? error;
   int fails = 0;
+  bool isLoading = false;
 
   @override
   void dispose() {
@@ -95,7 +98,7 @@ class _LoginState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _login() {
+  void _login() async {
     if (email.text.trim().isEmpty || pass.text.length < 6) {
       fails++;
       if (fails >= 3) {
@@ -107,7 +110,23 @@ class _LoginState extends State<LoginScreen> {
       }
       return;
     }
-    _enterApp(context);
+
+    setState(() {
+      isLoading = true;
+      error = null;
+    });
+
+    // Panggil API Login ke Express Backend
+    String? token = await AuthService.login(email.text.trim(), pass.text);
+
+    setState(() => isLoading = false);
+
+    if (token != null) {
+      if (!mounted) return;
+      _enterApp(context);
+    } else {
+      setState(() => error = 'Email atau kata sandi yang kamu masukkan salah.');
+    }
   }
 
   void _showLocked() => showDialog(
@@ -164,7 +183,7 @@ class _LoginState extends State<LoginScreen> {
                   controller: pass,
                   password: true,
                   required: true,
-                  helper: 'Hint text to help users'),
+                  helper: 'Masukkan kata sandi akun Anda'),
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
@@ -173,7 +192,9 @@ class _LoginState extends State<LoginScreen> {
                       style: TextStyle(color: C.navy, fontWeight: FontWeight.w700, fontSize: 12)),
                 ),
               ),
-              Btn('Masuk', onTap: _login),
+              isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : Btn('Masuk', onTap: _login),
               const SizedBox(height: 14),
               const OrDivider(),
               const SizedBox(height: 14),
@@ -190,6 +211,7 @@ class _LoginState extends State<LoginScreen> {
 // ───────────── Daftar Akun ─────────────
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
+
   @override
   State<RegisterScreen> createState() => _RegisterState();
 }
@@ -201,6 +223,7 @@ class _RegisterState extends State<RegisterScreen> {
   final email = TextEditingController();
   final pass = TextEditingController();
   String? error;
+  bool isLoading = false;
 
   @override
   void dispose() {
@@ -210,7 +233,7 @@ class _RegisterState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  void _register() {
+  void _register() async {
     final digits = phone.text.replaceAll(RegExp(r'\D'), '');
     String? e;
     if (name.text.trim().isEmpty) {
@@ -222,51 +245,80 @@ class _RegisterState extends State<RegisterScreen> {
     } else if (pass.text.length < 6) {
       e = 'Kata sandi minimal 6 karakter.';
     }
+
     setState(() => error = e);
     if (e != null) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Akun berhasil dibuat. Silakan masuk.')));
-    Navigator.pop(context);
+
+    setState(() => isLoading = true);
+
+    bool success = await AuthService.register(
+      name: name.text.trim(),
+      email: email.text.trim(),
+      phone: phone.text.trim(),
+      password: pass.text,
+    );
+
+    setState(() => isLoading = false);
+
+    if (success) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Akun berhasil dibuat. Silakan masuk.')),
+      );
+      Navigator.pop(context);
+    } else {
+      setState(() => error = 'Registrasi gagal. Email mungkin sudah digunakan.');
+    }
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
         body: Column(children: [
-          AppHeader('Masuk Akun',
+          AppHeader('Daftar Akun',
               bottom: Image.asset('assets/images/logo.png', height: 150)),
           Expanded(
-            child: ListView(padding: const EdgeInsets.fromLTRB(24, 0, 24, 24), children: [
-              const Center(
-                  child: Text('Daftarkan Akun Anda',
-                      style: TextStyle(color: C.navy, fontSize: 17, fontWeight: FontWeight.w500))),
-              const SizedBox(height: 4),
-              if (error != null) errorBanner(error!),
-              LField('Nama Lengkap', hint: 'Masukkan nama lengkap anda', controller: name),
-              LField('Nomor Handphone',
-                  hint: '878 0299 ...',
-                  prefixText: '+62',
-                  controller: phone,
-                  keyboard: TextInputType.phone),
-              LField('Alamat', hint: 'Masukkan Alamat Anda', controller: address),
-              LField('Masukkan Email Anda',
-                  hint: 'Masukkan Email Anda',
-                  controller: email,
-                  keyboard: TextInputType.emailAddress),
-              LField('Password',
-                  hint: '••••••••',
-                  controller: pass,
-                  password: true,
-                  required: true,
-                  helper: 'Minimal 6 karakter'),
-              const SizedBox(height: 18),
-              Btn('Daftar Akun', onTap: _register),
-              const SizedBox(height: 14),
-              const OrDivider(),
-              const SizedBox(height: 14),
-              GoldOutlineBtn('Google', onTap: () => _enterApp(context)),
-              const SizedBox(height: 6),
-              LinkLine('Sudah punya akun?', 'Masuk', onTap: () => Navigator.pop(context)),
-            ]),
+            child: ListView(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                children: [
+                  const Center(
+                      child: Text('Daftarkan Akun Anda',
+                          style: TextStyle(
+                              color: C.navy,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w500))),
+                  const SizedBox(height: 4),
+                  if (error != null) errorBanner(error!),
+                  LField('Nama Lengkap',
+                      hint: 'Masukkan nama lengkap anda', controller: name),
+                  LField('Nomor Handphone',
+                      hint: '878 0299 ...',
+                      prefixText: '+62',
+                      controller: phone,
+                      keyboard: TextInputType.phone),
+                  LField('Alamat',
+                      hint: 'Masukkan Alamat Anda', controller: address),
+                  LField('Masukkan Email Anda',
+                      hint: 'Masukkan Email Anda',
+                      controller: email,
+                      keyboard: TextInputType.emailAddress),
+                  LField('Password',
+                      hint: '••••••••',
+                      controller: pass,
+                      password: true,
+                      required: true,
+                      helper: 'Minimal 6 karakter'),
+                  const SizedBox(height: 18),
+                  isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : Btn('Daftar Akun', onTap: _register),
+                  const SizedBox(height: 14),
+                  const OrDivider(),
+                  const SizedBox(height: 14),
+                  GoldOutlineBtn('Google', onTap: () => _enterApp(context)),
+                  const SizedBox(height: 6),
+                  LinkLine('Sudah punya akun?', 'Masuk',
+                      onTap: () => Navigator.pop(context)),
+                ]),
           ),
         ]),
       );

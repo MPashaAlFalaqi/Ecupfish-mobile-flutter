@@ -1,4 +1,4 @@
-package com.example.myapp
+package id.ecupfish.app
 
 import io.flutter.embedding.android.FlutterActivity
 
