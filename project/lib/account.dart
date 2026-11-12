@@ -33,7 +33,7 @@ class _MessagesState extends State<MessagesScreen> {
                   prefix: const Icon(Icons.search, size: 18, color: C.mute)),
             )),
         Expanded(
-          child: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 16), children: [
+          child: ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 24), children: [
             for (final c in list)
               InkWell(
                 onTap: () => push(context, ChatScreen(seller: c.$2, initials: c.$1)),
@@ -203,7 +203,7 @@ class _ChatState extends State<ChatScreen> {
             child: SafeArea(
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 child: Row(children: [
                   const RoundBack(),
                   const SizedBox(width: 12),
@@ -442,7 +442,7 @@ class _ProfileState extends State<ProfileScreen> {
             child: SafeArea(
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.only(top: 18),
+                padding: const EdgeInsets.only(top: 24),
                 child: Column(children: [
                   Stack(children: [
                     const CircleAvatar(
@@ -469,7 +469,7 @@ class _ProfileState extends State<ProfileScreen> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             child: Column(children: [
               Box(
                 child: Row(children: [
@@ -531,7 +531,7 @@ class EditProfileScreen extends StatelessWidget {
             child: SafeArea(
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 child: Column(children: [
                   const Row(children: [
                     RoundBack(),

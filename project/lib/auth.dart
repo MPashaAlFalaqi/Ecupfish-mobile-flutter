@@ -35,11 +35,6 @@ class SplashScreen extends StatelessWidget {
               child: SafeArea(
                 top: false,
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Container(
-                      width: 36,
-                      height: 4,
-                      decoration: BoxDecoration(
-                          color: C.line, borderRadius: BorderRadius.circular(4))),
                   const SizedBox(height: 22),
                   const Text.rich(
                     TextSpan(children: [
@@ -232,7 +227,7 @@ class _RegisterState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         body: Column(children: [
-          AppHeader('Masuk Akun',
+          AppHeader('Daftar Akun',
               bottom: Image.asset('assets/images/logo.png', height: 150)),
           Expanded(
             child: ListView(padding: const EdgeInsets.fromLTRB(24, 0, 24, 24), children: [

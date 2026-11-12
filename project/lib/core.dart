@@ -52,7 +52,7 @@ void push(BuildContext c, Widget w) =>
 String rp(int v) =>
     'Rp ${v.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.')}';
 
-// ───────────────────────── DATA ─────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ DATA Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 class Fish {
   final String id, name, seller, type, grade, cat, desc;
@@ -220,15 +220,15 @@ class Cart extends ChangeNotifier {
 
 final cart = Cart();
 
-// ───────────────────────── HEADER GELOMBANG ─────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ HEADER GELOMBANG Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 Path _wave(Size s, double dy) {
-  final h = s.height - 6 + dy;
+  final h = s.height - 8 + dy;
   return Path()
     ..moveTo(0, 0)
-    ..lineTo(0, h - 22)
-    ..quadraticBezierTo(s.width * .22, h - 52, s.width * .5, h - 26)
-    ..quadraticBezierTo(s.width * .8, h + 2, s.width, h - 30)
+    ..lineTo(0, h - 16)
+    ..quadraticBezierTo(s.width * 0.22, h - 32, s.width * 0.5, h - 18)
+    ..quadraticBezierTo(s.width * 0.78, h + 2, s.width, h - 14)
     ..lineTo(s.width, 0)
     ..close();
 }
@@ -259,20 +259,23 @@ class WaveHeader extends StatelessWidget {
   const WaveHeader({super.key, required this.child});
 
   @override
-  Widget build(BuildContext context) => Stack(children: [
-        Positioned.fill(child: CustomPaint(painter: _GoldWave())),
-        ClipPath(
-          clipper: _WaveClipper(),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.only(bottom: 36),
-            decoration: const BoxDecoration(gradient: headerGradient),
-            child: child,
-          ),
+  Widget build(BuildContext context) {
+    final top = MediaQuery.paddingOf(context).top;
+    final extraTop = top < 44.0 ? (44.0 - top) : 0.0;
+    return Stack(children: [
+      Positioned.fill(child: CustomPaint(painter: _GoldWave())),
+      ClipPath(
+        clipper: _WaveClipper(),
+        child: Container(
+          width: double.infinity,
+          padding: EdgeInsets.only(top: extraTop, bottom: 52),
+          decoration: const BoxDecoration(gradient: headerGradient),
+          child: child,
         ),
-      ]);
+      ),
+    ]);
+  }
 }
-
 class RoundBack extends StatelessWidget {
   const RoundBack({super.key});
   @override
@@ -302,7 +305,7 @@ class AppHeader extends StatelessWidget {
         child: SafeArea(
           bottom: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: Column(children: [
               Row(children: [
                 if (back) ...[const RoundBack(), const SizedBox(width: 12)],
@@ -315,7 +318,7 @@ class AppHeader extends StatelessWidget {
                 ),
                 ...actions,
               ]),
-              if (bottom != null) ...[const SizedBox(height: 8), bottom!],
+              if (bottom != null) ...[const SizedBox(height: 12), bottom!],
             ]),
           ),
         ),
@@ -341,7 +344,7 @@ PreferredSizeWidget gradAppBar(String title,
           Container(decoration: const BoxDecoration(gradient: headerGradient)),
     );
 
-// ───────────────────────── WIDGET UMUM ─────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ WIDGET UMUM Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 class Box extends StatelessWidget {
   final Widget child;

@@ -62,7 +62,7 @@ class StatusPengirimanScreen extends StatelessWidget {
                 child: SafeArea(
                   bottom: false,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Row(children: [
                         const RoundBack(),
@@ -94,7 +94,7 @@ class StatusPengirimanScreen extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 16), children: [
+                child: ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 24), children: [
                   Box(
                     padding: const EdgeInsets.all(16),
                     child: Column(children: [
@@ -276,7 +276,7 @@ class _ReviewState extends State<ReviewScreen> {
       body: Column(children: [
         const AppHeader('Beri Ulasan'),
         Expanded(
-          child: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 16), children: [
+          child: ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 24), children: [
             Box(
               child: Row(children: [
                 ClipRRect(

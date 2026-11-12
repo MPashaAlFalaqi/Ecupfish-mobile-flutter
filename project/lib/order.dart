@@ -250,7 +250,7 @@ class _CartScreenState extends State<CartScreen> {
                 child: SafeArea(
                   bottom: false,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                     child: Row(children: [
                       const RoundBack(),
                       const SizedBox(width: 12),
@@ -286,7 +286,7 @@ class _CartScreenState extends State<CartScreen> {
                       ? _empty()
                       : ListView(
                           key: const ValueKey('list'),
-                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                           children: [
                             for (var i = 0; i < sellers.length; i++) _group(sellers[i], i),
                           ],
@@ -366,7 +366,7 @@ class _CheckoutState extends State<CheckoutScreen> {
       body: Column(children: [
         const AppHeader('Checkout'),
         Expanded(
-          child: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 16), children: [
+          child: ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 24), children: [
             _sectionTitle(Icons.location_on_outlined, 'Alamat Pengiriman'),
             Box(
               child: Row(children: [
@@ -538,9 +538,6 @@ const _bank = [
   _Pm('BNI Virtual Account', 'Verifikasi otomatis 1-5 menit', 'BNI'),
   _Pm('Mandiri Virtual Account', 'Sedang dalam pemeliharaan sistem', 'MDR', off: true),
 ];
-const _card = [
-  _Pm('Visa / Mastercard', 'Biaya admin 1,5% dari total tagihan', 'VISA', feePct: .015),
-];
 
 class PaymentScreen extends StatefulWidget {
   final Draft draft;
@@ -631,7 +628,7 @@ class _PaymentState extends State<PaymentScreen> {
                 ]),
               )),
           Expanded(
-            child: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 16), children: [
+            child: ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 24), children: [
               if (low)
                 Container(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -654,7 +651,6 @@ class _PaymentState extends State<PaymentScreen> {
                 ),
               _group(Icons.account_balance_wallet_outlined, 'E-Wallet', _wallet),
               _group(Icons.account_balance_outlined, 'Transfer Bank (Virtual Account)', _bank, tag: 'Gratis'),
-              _group(Icons.credit_card, 'Kartu Kredit / Debit', _card, tag: '+1,5%'),
             ]),
           ),
           _bottomBar(
@@ -726,7 +722,7 @@ class ProcessPaymentScreen extends StatelessWidget {
       body: Column(children: [
         const AppHeader('Proses Pembayaran'),
         Expanded(
-          child: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 16), children: [
+          child: ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 24), children: [
             Box(
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -873,7 +869,7 @@ class DetailPesananScreen extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 16), children: [
+                child: ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 24), children: [
                   Box(
                     child: Row(children: [
                       const Text('NO. PESANAN',
@@ -1010,7 +1006,7 @@ class OrdersScreen extends StatelessWidget {
                 if (cart.orders.isEmpty) {
                   return const Center(child: Text('Belum ada pesanan'));
                 }
-                return ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 16), children: [
+                return ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 24), children: [
                   for (final o in cart.orders)
                     GestureDetector(
                       onTap: () => push(context, DetailPesananScreen(o)),
@@ -1124,7 +1120,7 @@ class _NotifState extends State<NotificationScreen> {
               ]),
             )),
         Expanded(
-          child: ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 16), children: [
+          child: ListView(padding: const EdgeInsets.fromLTRB(16, 14, 16, 24), children: [
             for (final i in shown) ...[
               if (items[i].$1 != last) ...[
                 Padding(

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 /// Membuat seluruh layar (didesain untuk lebar 390) menyesuaikan semua ukuran
@@ -19,10 +20,23 @@ class ResponsiveFrame extends StatelessWidget {
     final scale = shownW / designWidth;
     final virtualH = screen.height / scale;
 
+    final rawTop = mq.padding.top > 0 ? mq.padding.top : mq.viewPadding.top;
+    final safeTop = math.max(rawTop, 44.0);
+
     final scaled = mq.copyWith(
       size: Size(designWidth, virtualH),
-      padding: mq.padding / scale,
-      viewPadding: mq.viewPadding / scale,
+      padding: EdgeInsets.only(
+        left: mq.padding.left / scale,
+        top: safeTop / scale,
+        right: mq.padding.right / scale,
+        bottom: mq.padding.bottom / scale,
+      ),
+      viewPadding: EdgeInsets.only(
+        left: mq.viewPadding.left / scale,
+        top: safeTop / scale,
+        right: mq.viewPadding.right / scale,
+        bottom: mq.viewPadding.bottom / scale,
+      ),
       viewInsets: mq.viewInsets / scale,
       systemGestureInsets: mq.systemGestureInsets / scale,
       // batasi pembesaran font sistem agar layout tidak overflow
