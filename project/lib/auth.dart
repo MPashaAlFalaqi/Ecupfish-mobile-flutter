@@ -6,6 +6,7 @@ import 'core.dart';
 import 'forgot.dart';
 import 'order.dart';
 import 'shop.dart';
+import 'dart:convert';
 
 // ───────────── Splash / Onboarding ─────────────
 class SplashScreen extends StatelessWidget {
@@ -99,35 +100,62 @@ class _LoginState extends State<LoginScreen> {
   }
 
   void _login() async {
-    if (email.text.trim().isEmpty || pass.text.length < 6) {
-      fails++;
-      if (fails >= 3) {
-        setState(() => error = null);
-        _showLocked();
-      } else {
-        setState(() => error =
-            'Email atau kata sandi yang kamu masukkan salah. Coba periksa kembali, atau reset kata sandi jika lupa.');
-      }
+  if (email.text.trim().isEmpty || pass.text.length < 6) {
+    _catatGagal(
+      'Email atau kata sandi yang kamu masukkan salah. Coba periksa kembali, atau reset kata sandi jika lupa.',
+    );
+    return;
+  }
+
+  setState(() {
+    isLoading = true;
+    error = null;
+  });
+
+  // Panggil API Login ke Express Backend
+  String? token = await AuthService.login(email.text.trim(), pass.text);
+
+  if (!mounted) return;
+  setState(() => isLoading = false);
+
+  if (token != null) {
+    // Cek role dari payload JWT
+    final role = _ambilRoleDariToken(token);
+    if (role != null && role != 'BUYER') {
+      setState(() {
+        error = 'Akun bukan pembeli. Gunakan dashboard web untuk akun seller/admin.';
+      });
       return;
     }
 
-    setState(() {
-      isLoading = true;
-      error = null;
-    });
-
-    // Panggil API Login ke Express Backend
-    String? token = await AuthService.login(email.text.trim(), pass.text);
-
-    setState(() => isLoading = false);
-
-    if (token != null) {
-      if (!mounted) return;
-      _enterApp(context);
-    } else {
-      setState(() => error = 'Email atau kata sandi yang kamu masukkan salah.');
-    }
+    fails = 0;
+    _enterApp(context);
+  } else {
+    _catatGagal('Email atau kata sandi yang kamu masukkan salah.');
   }
+}
+
+void _catatGagal(String pesan) {
+  fails++;
+  if (fails >= 3) {
+    setState(() => error = null);
+    _showLocked();
+  } else {
+    setState(() => error = pesan);
+  }
+}
+
+String? _ambilRoleDariToken(String token) {
+  try {
+    final parts = token.split('.');
+    if (parts.length != 3) return null;
+    final normalized = base64Url.normalize(parts[1]);
+    final payload = jsonDecode(utf8.decode(base64Url.decode(normalized)));
+    return payload['role']?.toString();
+  } catch (_) {
+    return null;
+  }
+}
 
   void _showLocked() => showDialog(
         context: context,

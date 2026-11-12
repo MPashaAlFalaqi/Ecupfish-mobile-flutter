@@ -6,6 +6,8 @@ import 'core.dart';
 import 'extra.dart';
 import 'motion.dart';
 import 'order.dart';
+import 'api/api_client.dart';
+import 'api/product_api.dart';
 
 // ───────────── Tambah ke keranjang (dengan umpan balik) ─────────────
 void addToCart(BuildContext context, Fish f) {
@@ -322,11 +324,43 @@ class _HomeState extends State<HomeScreen> {
       end: Alignment.bottomCenter,
       colors: [Colors.white, Colors.white]);
   String cat = 'All';
+  bool _loading = true;
+  String? _loadError;
+
+  @override
+  void initState() {
+    super.initState();
+    _load(initial: true);
+  }
+
+  /// Mengambil katalog dari backend. Dipakai saat layar dibuka, tombol Coba lagi,
+  /// dan tarik-untuk-muat-ulang.
+  Future<void> _load({bool initial = false}) async {
+    if (!initial) {
+      setState(() {
+        _loading = true;
+        _loadError = null;
+      });
+    }
+    try {
+      final list = await ProductApi.list();
+      if (!mounted) return;
+      setState(() => fishes = list);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _loadError = e.message);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final list = fishes.where((f) => cat == 'All' || f.type == cat).toList();
-    return ListView(
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 8, 16, 24),
       children: [
         Reveal(
@@ -437,6 +471,21 @@ class _HomeState extends State<HomeScreen> {
           ]),
         ),
         const SizedBox(height: 10),
+        if (_loading && fishes.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 48),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_loadError != null && fishes.isEmpty)
+          _LoadError(message: _loadError!, onRetry: _load)
+        else if (list.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 48),
+            child: Center(
+                child: Text('Belum ada ikan di kategori ini.',
+                    style: TextStyle(color: C.mute))),
+          )
+        else
         // Tinggi grid berubah halus saat kategori diganti; kartu muncul bergantian.
         AnimatedSize(
           duration: const Duration(milliseconds: 320),
@@ -460,7 +509,7 @@ class _HomeState extends State<HomeScreen> {
           ),
         ),
       ],
-    );
+    ));
   }
 }
 
@@ -1412,4 +1461,24 @@ class _AuctionState extends State<AuctionScreen> {
       ),
     );
   }
+}
+
+// Tampilan saat katalog gagal dimuat (server mati, koneksi putus, dan sebagainya)
+class _LoadError extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  const _LoadError({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32),
+        child: Column(children: [
+          const Icon(Icons.cloud_off, size: 40, color: C.mute),
+          const SizedBox(height: 8),
+          Text(message,
+              textAlign: TextAlign.center, style: const TextStyle(color: C.mute)),
+          const SizedBox(height: 12),
+          Btn('Coba lagi', gold: true, height: 40, onTap: onRetry),
+        ]),
+      );
 }
