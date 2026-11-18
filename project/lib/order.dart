@@ -538,9 +538,6 @@ const _bank = [
   _Pm('BNI Virtual Account', 'Verifikasi otomatis 1-5 menit', 'BNI'),
   _Pm('Mandiri Virtual Account', 'Sedang dalam pemeliharaan sistem', 'MDR', off: true),
 ];
-const _card = [
-  _Pm('Visa / Mastercard', 'Biaya admin 1,5% dari total tagihan', 'VISA', feePct: .015),
-];
 
 class PaymentScreen extends StatefulWidget {
   final Draft draft;
@@ -653,10 +650,7 @@ class _PaymentState extends State<PaymentScreen> {
                   ]),
                 ),
               _group(Icons.account_balance_wallet_outlined, 'E-Wallet', _wallet),
-              _group(Icons.account_balance_outlined, 'Transfer Bank (Virtual Account)', _bank, tag: 'Gratis'),
-              _group(Icons.credit_card, 'Kartu Kredit / Debit', _card, tag: '+1,5%'),
-            ]),
-          ),
+              _group(Icons.account_balance_outlined, 'Transfer Bank (Virtual Account)', _bank, tag: 'Gratis')])),
           _bottomBar(
             Btn(
               low

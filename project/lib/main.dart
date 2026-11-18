@@ -3,12 +3,12 @@ import 'package:flutter/services.dart';
 import 'auth.dart';
 import 'core.dart';
 import 'responsive.dart';
+import 'api/api_client.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await SystemChrome.setPreferredOrientations(
-      [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
-  runApp(const ECupFishApp());
+  await ApiClient.instance.load();
+  runApp(const ECupFishApp()); // gunakan pemanggilan runApp yang sudah ada
 }
 
 class ECupFishApp extends StatelessWidget {

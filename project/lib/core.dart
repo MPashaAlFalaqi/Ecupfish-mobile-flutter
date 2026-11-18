@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'api/config.dart';
 import 'motion.dart';
 
 /// Warna utama eCupFish (diambil dari logo)
@@ -58,9 +59,46 @@ class Fish {
   final String id, name, seller, type, grade, cat, desc;
   final int price, reviews, stock;
   final double rating;
+
+  /// Alamat foto sampul dari server, contoh: /uploads/products/xxxx.jpg
+  final String? image;
+
   const Fish(this.id, this.name, this.seller, this.type, this.grade, this.cat,
       this.price, this.rating, this.reviews, this.desc,
-      {this.stock = 5});
+      {this.stock = 5, this.image});
+
+  /// Membuat Fish dari JSON backend (GET /api/products).
+  /// type = kategori (Plakat/Halfmoon/Nemo), grade = kelas (S/A/B/C),
+  /// cat = tipe (Contest/Player/Pet).
+  factory Fish.fromJson(Map<String, dynamic> j) {
+    const labelTipe = {'CONTEST': 'Contest', 'PLAYER': 'Player', 'PET': 'Pet'};
+    final media = (j['media'] as List? ?? const []).cast<Map<String, dynamic>>();
+    final sampul = media.where((m) => m['isCover'] == true).toList();
+    final seller = (j['seller'] as Map?)?['name'];
+    final desc = (j['healthDescription'] as String?)?.trim();
+    return Fish(
+      '${j['id']}',
+      j['name'] as String,
+      (seller ?? 'eCupFish') as String,
+      j['category'] as String,
+      (j['tier'] ?? 'B') as String,
+      labelTipe[j['grade']] ?? 'Pet',
+      (j['price'] as num).toInt(),
+      (j['ratingAvg'] as num).toDouble(),
+      (j['reviewCount'] as num).toInt(),
+      (desc == null || desc.isEmpty) ? _desc : desc,
+      stock: (j['stock'] as num).toInt(),
+      image: sampul.isEmpty ? null : sampul.first['url'] as String?,
+    );
+  }
+
+  // Keranjang memakai Fish sebagai kunci Map/Set. Dengan pembanding berdasarkan id,
+  // ikan yang sama tetap dikenali setelah daftar diambil ulang dari server.
+  @override
+  bool operator ==(Object other) => other is Fish && other.id == id;
+
+  @override
+  int get hashCode => id.hashCode;
 }
 
 const _desc =
@@ -68,16 +106,8 @@ const _desc =
     '(body mass index ideal) dengan form sirip yang rapi dan bukaan ekor yang '
     'maksimal.';
 
-const fishes = [
-  Fish('1', 'Plakat Blue Rim', 'Betta King Jakarta', 'Plakat', 'A', 'Contest', 150000, 4.9, 24, _desc),
-  Fish('2', 'Halfmoon Galaxy Koi', 'Halfmoon Galaxy', 'Halfmoon', 'S', 'Contest', 325000, 5.0, 12, _desc),
-  Fish('3', 'Halfmoon Multi Copper Galaxy', 'Halfmoon Galaxy', 'Halfmoon', 'B', 'Contest', 450000, 4.9, 31, _desc),
-  Fish('4', 'Halfmoon Multi Blue Rim Pure', 'Halfmoon Galaxy', 'Halfmoon', 'A', 'Player', 275000, 4.8, 18, _desc),
-  Fish('5', 'Halfmoon Multi Fancy Avatar', 'Halfmoon Galaxy', 'Halfmoon', 'S', 'Contest', 850000, 5.0, 9, _desc),
-  Fish('6', 'Halfmoon Marble Multi Splash', 'Betta King Jakarta', 'Halfmoon', 'B', 'Pet', 95000, 4.7, 45, _desc),
-  Fish('7', 'Nemo Classic Multi', 'Nemo Aquatic Farm', 'Nemo', 'B', 'Pet', 85000, 4.7, 45, _desc),
-  Fish('8', 'Super Red Plakat', 'Super Red Betta', 'Plakat', 'A', 'Player', 120000, 4.6, 38, _desc),
-];
+/// Daftar ikan hasil GET /api/products. Diisi oleh HomeScreen saat dimuat.
+List<Fish> fishes = [];
 
 /// Rincian pesanan sebelum dibayar (dari keranjang atau dari lelang).
 class Draft {
@@ -627,21 +657,41 @@ class FishThumb extends StatelessWidget {
   final String? badge;
   const FishThumb(this.f, {super.key, this.compact = false, this.height, this.badge});
 
+  // Tampilan cadangan bila ikan belum punya foto atau foto gagal dimuat
+  Widget _placeholder() => Center(
+      child: compact
+          ? const Icon(Icons.set_meal, size: 26, color: C.orange)
+          : const Column(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.set_meal, size: 40, color: C.orange),
+              SizedBox(height: 4),
+              Text('Foto Ikan',
+                  style: TextStyle(color: Color(0x99FFFFFF), fontSize: 11)),
+            ]));
+
   @override
   Widget build(BuildContext context) => Container(
         height: height,
         width: double.infinity,
         decoration: const BoxDecoration(gradient: darkCard),
         child: Stack(children: [
-          Center(
-              child: compact
-                  ? const Icon(Icons.set_meal, size: 26, color: C.orange)
-                  : const Column(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.set_meal, size: 40, color: C.orange),
-                      SizedBox(height: 4),
-                      Text('Foto Ikan',
-                          style: TextStyle(color: Color(0x99FFFFFF), fontSize: 11)),
-                    ])),
+          if (f.image == null)
+            _placeholder()
+          else
+            Positioned.fill(
+              child: Image.network(
+                '$baseUrl${f.image}',
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _placeholder(),
+                loadingBuilder: (_, child, progress) => progress == null
+                    ? child
+                    : const Center(
+                        child: SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: C.orange))),
+              ),
+            ),
           if (!compact)
             Positioned(
               top: 8,
