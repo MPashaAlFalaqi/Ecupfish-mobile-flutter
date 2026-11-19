@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'api/api_client.dart';
+import 'api/user_api.dart';
 import 'auth.dart';
 import 'core.dart';
 import 'forgot.dart';
@@ -401,6 +403,40 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileState extends State<ProfileScreen> {
   bool claimOpen = false;
+  Map<String, dynamic> _user = Map<String, dynamic>.from(ApiClient.instance.user ?? {});
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final latest = await UserApi.getProfile();
+      if (!mounted) return;
+      setState(() {
+        _user = Map<String, dynamic>.from(latest as Map);
+      });
+    } catch (_) {
+      // Tetap gunakan data cache dari ApiClient jika offline
+    }
+  }
+
+  Future<void> _openEditProfile() async {
+    final updated = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditProfileScreen(initialUser: _user),
+      ),
+    );
+
+    if (updated != null && mounted) {
+      setState(() {
+        _user = Map<String, dynamic>.from(updated as Map);
+      });
+    }
+  }
 
   Widget _stat(String v, String l) => Expanded(
         child: Column(children: [
@@ -426,7 +462,11 @@ class _ProfileState extends State<ProfileScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(t, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: color == Colors.red ? Colors.red : C.ink)),
+                Text(t,
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: color == Colors.red ? Colors.red : C.ink)),
                 Text(s, style: const TextStyle(fontSize: 11, color: C.mute)),
               ]),
             ),
@@ -436,15 +476,21 @@ class _ProfileState extends State<ProfileScreen> {
       );
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        body: ListView(padding: EdgeInsets.zero, children: [
-          WaveHeader(
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 18),
-                child: Column(children: [
-                  Stack(children: [
+  Widget build(BuildContext context) {
+    final displayName = (_user['name'] ?? 'Pasha').toString();
+    final displayEmail = (_user['email'] ?? 'pasha@email.com').toString();
+
+    return Scaffold(
+      body: ListView(padding: EdgeInsets.zero, children: [
+        WaveHeader(
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 18),
+              child: Column(children: [
+                GestureDetector(
+                  onTap: _openEditProfile,
+                  child: Stack(children: [
                     const CircleAvatar(
                         radius: 40,
                         backgroundColor: C.skySoft,
@@ -459,179 +505,196 @@ class _ProfileState extends State<ProfileScreen> {
                       ),
                     ),
                   ]),
-                  const SizedBox(height: 8),
-                  const Text('Pasha',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18)),
-                  const Text('pasha@email.com',
-                      style: TextStyle(color: Colors.white70, fontSize: 12)),
-                ]),
-              ),
+                ),
+                const SizedBox(height: 8),
+                Text(displayName,
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18)),
+                Text(displayEmail,
+                    style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              ]),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-            child: Column(children: [
-              Box(
-                child: Row(children: [
-                  ListenableBuilder(
-                      listenable: cart,
-                      builder: (_, __) => _stat('${cart.orders.length + 12}', 'Pesanan')),
-                  _stat('4,9', 'Rating'),
-                  _stat('1', 'Klaim Aktif'),
-                ]),
-              ),
-              Box(
-                padding: EdgeInsets.zero,
-                child: Column(children: [
-                  _row(Icons.receipt_long, 'Riwayat Pesanan', '12 pesanan',
-                      () => push(context, const OrdersScreen(back: true))),
-                  const Divider(height: 1, color: C.line),
-                  _row(Icons.shield_outlined, 'Pusat Klaim Garansi Ikan Mati',
-                      'Ajukan & pantau klaim garansi',
-                      () => setState(() => claimOpen = !claimOpen),
-                      color: C.amberDark,
-                      trailing: Icon(claimOpen ? Icons.expand_less : Icons.expand_more, color: C.mute)),
-                  if (claimOpen)
-                    const Padding(
-                        padding: EdgeInsets.fromLTRB(14, 0, 14, 14), child: ClaimForm()),
-                  const Divider(height: 1, color: C.line),
-                  _row(Icons.chat_bubble_outline, 'Pesan', 'Chat dengan penjual',
-                      () => push(context, const MessagesScreen())),
-                  const Divider(height: 1, color: C.line),
-                  _row(Icons.notifications_none, 'Notifikasi', 'Lelang, pesanan, promo',
-                      () => push(context, const NotificationScreen())),
-                  const Divider(height: 1, color: C.line),
-                  _row(Icons.settings_outlined, 'Pengaturan Akun', 'Profil, alamat, keamanan',
-                      () => push(context, const EditProfileScreen())),
-                ]),
-              ),
-              Box(
-                padding: EdgeInsets.zero,
-                child: _row(Icons.logout, 'Keluar', 'Keluar dari akun ini',
-                    () => Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (_) => const SplashScreen()),
-                        (r) => false),
-                    color: Colors.red),
-              ),
-            ]),
-          ),
-        ]),
-      );
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          child: Column(children: [
+            Box(
+              child: Row(children: [
+                ListenableBuilder(
+                    listenable: cart,
+                    builder: (_, __) => _stat('${cart.orders.length + 12}', 'Pesanan')),
+                _stat('4,9', 'Rating'),
+                _stat('1', 'Klaim Aktif'),
+              ]),
+            ),
+            Box(
+              padding: EdgeInsets.zero,
+              child: Column(children: [
+                _row(Icons.receipt_long, 'Riwayat Pesanan', '12 pesanan',
+                    () => push(context, const OrdersScreen(back: true))),
+                const Divider(height: 1, color: C.line),
+                _row(Icons.shield_outlined, 'Pusat Klaim Garansi Ikan Mati',
+                    'Ajukan & pantau klaim garansi',
+                    () => setState(() => claimOpen = !claimOpen),
+                    color: C.amberDark,
+                    trailing: Icon(claimOpen ? Icons.expand_less : Icons.expand_more, color: C.mute)),
+                if (claimOpen)
+                  const Padding(
+                      padding: EdgeInsets.fromLTRB(14, 0, 14, 14), child: ClaimForm()),
+                const Divider(height: 1, color: C.line),
+                _row(Icons.chat_bubble_outline, 'Pesan', 'Chat dengan penjual',
+                    () => push(context, const MessagesScreen())),
+                const Divider(height: 1, color: C.line),
+                _row(Icons.notifications_none, 'Notifikasi', 'Lelang, pesanan, promo',
+                    () => push(context, const NotificationScreen())),
+                const Divider(height: 1, color: C.line),
+                _row(Icons.settings_outlined, 'Pengaturan Akun', 'Profil, alamat, keamanan',
+                    _openEditProfile),
+              ]),
+            ),
+            Box(
+              padding: EdgeInsets.zero,
+              child: _row(Icons.logout, 'Keluar', 'Keluar dari akun ini',
+                  () => Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SplashScreen()),
+                      (r) => false),
+                  color: Colors.red),
+            ),
+          ]),
+        ),
+      ]),
+    );
+  }
 }
 
 // ───────────── Edit Profil ─────────────
-class EditProfileScreen extends StatelessWidget {
-  const EditProfileScreen({super.key});
+class EditProfileScreen extends StatefulWidget {
+  final Map<String, dynamic>? initialUser;
+
+  const EditProfileScreen({super.key, this.initialUser});
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        body: ListView(padding: EdgeInsets.zero, children: [
-          WaveHeader(
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                child: Column(children: [
-                  const Row(children: [
-                    RoundBack(),
-                    SizedBox(width: 12),
-                    Text('Edit Profil',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18)),
-                  ]),
-                  const SizedBox(height: 10),
-                  Stack(children: [
-                    Container(
-                      width: 78,
-                      height: 78,
-                      decoration: const BoxDecoration(color: C.skySoft, shape: BoxShape.circle),
-                      child: const Icon(Icons.person, size: 44, color: Colors.white),
-                    ),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(5),
-                        decoration: const BoxDecoration(color: C.amber, shape: BoxShape.circle),
-                        child: const Icon(Icons.photo_camera, size: 12, color: C.ink),
-                      ),
-                    ),
-                  ]),
-                ]),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(22, 0, 22, 24),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _F('Nama Lengkap', 'PASHA', Icons.person_outline),
-              _F('Username', 'Pasha_betta', Icons.alternate_email),
-              _F('Email', 'pasha@email.com', Icons.mail_outline, verified: true),
-              _F('Nomor Handphone', '+62 812-3456-7890', Icons.phone_outlined),
-              const SizedBox(height: 18),
-              Btn('Simpan Profile', onTap: () {
-                ScaffoldMessenger.of(context)
-                    .showSnackBar(const SnackBar(content: Text('Perubahan disimpan')));
-                Navigator.pop(context);
-              }),
-              const SizedBox(height: 20),
-              const Row(children: [
-                Expanded(child: Divider(color: C.line)),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 10),
-                  child: Text('KEAMANAN AKUN',
-                      style: TextStyle(fontSize: 10, color: C.mute, letterSpacing: 1)),
-                ),
-                Expanded(child: Divider(color: C.line)),
-              ]),
-              const SizedBox(height: 12),
-              Box(
-                child: Row(children: [
-                  const Icon(Icons.lock_outline, color: C.blue, size: 20),
-                  const SizedBox(width: 10),
-                  const Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Kata Sandi', style: TextStyle(fontWeight: FontWeight.w700)),
-                      Text('Terakhir diubah 2 bulan lalu',
-                          style: TextStyle(fontSize: 11, color: C.mute)),
-                    ]),
-                  ),
-                  TextButton(
-                    style: TextButton.styleFrom(backgroundColor: C.field),
-                    onPressed: () => push(context, const ForgotPasswordScreen()),
-                    child: const Text('Ubah', style: TextStyle(fontWeight: FontWeight.w700)),
-                  ),
-                ]),
-              ),
-            ]),
-          ),
-        ]),
-      );
+  State<EditProfileScreen> createState() => _EditProfileScreenState();
 }
 
-class _F extends StatelessWidget {
-  final String label, value;
-  final IconData icon;
-  final bool verified;
-  const _F(this.label, this.value, this.icon, {this.verified = false});
+class _EditProfileScreenState extends State<EditProfileScreen> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _usernameCtrl;
+  late final TextEditingController _phoneCtrl;
+  late final String _email;
+
+  bool _saving = false;
 
   @override
-  Widget build(BuildContext context) =>
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        fieldLabel(label),
-        TextFormField(
-          initialValue: value,
-          decoration: fieldDec(label,
-              fill: C.field,
-              prefix: Icon(icon, size: 18, color: C.navy),
-              suffix: verified
-                  ? const Padding(
-                      padding: EdgeInsets.only(right: 12),
-                      child: Center(
-                          widthFactor: 1,
-                          child: Text('✓ Terverifikasi',
-                              style: TextStyle(color: Colors.green, fontSize: 10))))
-                  : null),
+  void initState() {
+    super.initState();
+    final u = widget.initialUser ?? ApiClient.instance.user ?? {};
+    _nameCtrl = TextEditingController(text: (u['name'] ?? '').toString());
+    _usernameCtrl = TextEditingController(text: (u['username'] ?? '').toString());
+    _phoneCtrl = TextEditingController(text: (u['phoneNumber'] ?? '').toString());
+    _email = (u['email'] ?? '').toString();
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _usernameCtrl.dispose();
+    _phoneCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _simpanProfil() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    setState(() => _saving = true);
+    try {
+      final updatedUser = await UserApi.updateProfile(
+        name: _nameCtrl.text.trim(),
+        username: _usernameCtrl.text.trim(),
+        phoneNumber: _phoneCtrl.text.trim(),
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profil berhasil diperbarui')),
+      );
+      Navigator.pop(context, updatedUser);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Column(children: [
+        const AppHeader('Edit Profil'),
+        Expanded(
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              children: [
+                fieldLabel('Nama Lengkap'),
+                TextFormField(
+                  controller: _nameCtrl,
+                  decoration: fieldDec('Masukkan nama lengkap',
+                      fill: C.field,
+                      prefix: const Icon(Icons.person_outline, size: 18, color: C.navy)),
+                  validator: (v) =>
+                      (v == null || v.trim().length < 2) ? 'Nama minimal 2 karakter' : null,
+                ),
+                fieldLabel('Username'),
+                TextFormField(
+                  controller: _usernameCtrl,
+                  decoration: fieldDec('Masukkan username',
+                      fill: C.field,
+                      prefix: const Icon(Icons.alternate_email, size: 18, color: C.navy)),
+                  validator: (v) =>
+                      (v == null || v.trim().length < 3) ? 'Username minimal 3 karakter' : null,
+                ),
+                fieldLabel('Email'),
+                TextFormField(
+                  initialValue: _email,
+                  readOnly: true,
+                  decoration: fieldDec('Email',
+                      fill: C.field,
+                      prefix: const Icon(Icons.mail_outline, size: 18, color: C.navy),
+                      suffix: const Padding(
+                        padding: EdgeInsets.only(right: 12),
+                        child: Center(
+                            widthFactor: 1,
+                            child: Text('✓ Terverifikasi',
+                                style: TextStyle(color: Colors.green, fontSize: 10))),
+                      )),
+                ),
+                fieldLabel('Nomor Telepon'),
+                TextFormField(
+                  controller: _phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  decoration: fieldDec('Contoh: 08123456789',
+                      fill: C.field,
+                      prefix: const Icon(Icons.phone_outlined, size: 18, color: C.navy)),
+                ),
+                const SizedBox(height: 20),
+                Btn(
+                  _saving ? 'Menyimpan...' : 'Simpan Perubahan',
+                  gold: true,
+                  onTap: _saving ? null : _simpanProfil,
+                ),
+              ],
+            ),
+          ),
         ),
-      ]);
+      ]),
+    );
+  }
 }
