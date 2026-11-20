@@ -1,4 +1,10 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'api/api_client.dart';
+import 'api/chat_api.dart';
+import 'api/user_api.dart';
 import 'auth.dart';
 import 'core.dart';
 import 'forgot.dart';
@@ -12,18 +18,33 @@ class MessagesScreen extends StatefulWidget {
 }
 
 class _MessagesState extends State<MessagesScreen> {
-  static const chats = [
-    ('BK', 'Betta King Jakarta', 'Kak, ikan sudah kami packing, siap kirim besok pagi.', '13:45', 1, true),
-    ('NA', 'Nemo Aquatic Farm', 'Terima kasih sudah berbelanja ya kak 🙏', 'Kemarin', 0, true),
-    ('HG', 'Halfmoon Galaxy', 'Baik kak, akan saya cek stoknya dulu.', 'Kemarin', 2, true),
-    ('CS', 'eCupFish Care', 'Klaim garansi Anda sedang kami tinjau.', '2 hr', 0, true),
-    ('SR', 'Super Red Betta', 'Oke kak siap, ditunggu pembayarannya ya.', '3 hr', 0, true),
-  ];
   String q = '';
+  String lastMsg = 'Ketuk untuk memulai obrolan dengan penjual';
+  String lastTime = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLastMsg();
+  }
+
+  Future<void> _checkLastMsg() async {
+    try {
+      final remote = await ChatApi.getSyncMessages();
+      if (remote.isNotEmpty && mounted) {
+        final last = remote.last;
+        setState(() {
+          lastMsg = last['body']?.toString() ?? 'Pesan baru';
+          lastTime = last['createdAt'] != null && last['createdAt'].toString().length >= 16
+              ? last['createdAt'].toString().substring(11, 16)
+              : '';
+        });
+      }
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
-    final list = chats.where((c) => c.$2.toLowerCase().contains(q.toLowerCase())).toList();
     return Scaffold(
       body: Column(children: [
         AppHeader('Pesan',
@@ -33,58 +54,64 @@ class _MessagesState extends State<MessagesScreen> {
                   prefix: const Icon(Icons.search, size: 18, color: C.mute)),
             )),
         Expanded(
-          child: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 16), children: [
-            for (final c in list)
-              InkWell(
-                onTap: () => push(context, ChatScreen(seller: c.$2, initials: c.$1)),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Row(children: [
-                    Stack(children: [
-                      CircleAvatar(
-                          radius: 22,
-                          backgroundColor: C.blue,
-                          child: Text(c.$1,
-                              style: const TextStyle(
-                                  color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13))),
-                      if (c.$6)
-                        Positioned(
-                          right: 0,
-                          bottom: 0,
-                          child: Container(
-                            width: 11,
-                            height: 11,
-                            decoration: BoxDecoration(
-                                color: Colors.green,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2)),
-                          ),
-                        ),
-                    ]),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(c.$2, style: const TextStyle(fontWeight: FontWeight.w700)),
-                        Text(c.$3,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 12, color: C.mute)),
-                      ]),
-                    ),
-                    const SizedBox(width: 8),
-                    Column(children: [
-                      Text(c.$4, style: const TextStyle(fontSize: 10, color: C.mute)),
-                      const SizedBox(height: 4),
-                      if (c.$5 > 0)
-                        CircleAvatar(
-                            radius: 9,
-                            backgroundColor: C.amber,
-                            child: Text('${c.$5}',
-                                style: const TextStyle(fontSize: 10, color: C.ink, fontWeight: FontWeight.w700))),
-                    ]),
-                  ]),
+          child: ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 16), children: [
+            InkWell(
+              onTap: () async {
+                await push(context, const ChatScreen(seller: 'Betta King Jakarta (Penjual Official)', initials: 'BK'));
+                _checkLastMsg();
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: const [BoxShadow(color: C.shadow, blurRadius: 4, offset: Offset(0, 2))],
                 ),
+                child: Row(children: [
+                  Stack(children: [
+                    const CircleAvatar(
+                        radius: 22,
+                        backgroundColor: C.navy,
+                        child: Text('BK',
+                            style: TextStyle(
+                                color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13))),
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: Container(
+                        width: 11,
+                        height: 11,
+                        decoration: BoxDecoration(
+                            color: Colors.green,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2)),
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const Row(children: [
+                        Text('Betta King Jakarta', style: TextStyle(fontWeight: FontWeight.w700)),
+                        SizedBox(width: 6),
+                        Pill('Official Store', bg: C.field, fg: C.navy),
+                      ]),
+                      const SizedBox(height: 3),
+                      Text(lastMsg,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12, color: C.mute)),
+                    ]),
+                  ),
+                  const SizedBox(width: 8),
+                  Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                    Text(lastTime, style: const TextStyle(fontSize: 10, color: C.mute)),
+                    const SizedBox(height: 4),
+                    const Icon(Icons.chevron_right, size: 18, color: C.mute),
+                  ]),
+                ]),
               ),
+            ),
           ]),
         ),
       ]),
@@ -104,16 +131,78 @@ class ChatScreen extends StatefulWidget {
 class _ChatState extends State<ChatScreen> {
   final ctrl = TextEditingController();
   final scroll = ScrollController();
-  // (dari saya?, teks, jam, kartu produk?)
-  final msgs = <(bool, String, String, bool)>[
-    (false, 'Halo kak, ikan Plakat Blue Rim masih ready?', '13:20', false),
-    (true, 'Halo! Ready kak, ini fotonya ya 😊', '13:21', false),
-    (true, 'Plakat Blue Rim - Grade A', '13:21', true),
-    (false, 'Boleh nego kak? Kalau ambil 2 ekor', '13:24', false),
-    (true, 'Bisa kak, saya kasih Rp 470.000 untuk 2 ekor 👍', '13:26', false),
-    (false, 'Oke deal kak, saya order sekarang ya', '13:28', false),
-    (true, 'Kak, ikan sudah kami packing, siap kirim besok pagi.', '13:45', false),
-  ];
+  Timer? _poller;
+
+  // Mulai dari nol / kosong (tidak ada data demo)
+  final msgs = <(bool, String, String, bool)>[];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMessages();
+    _poller = Timer.periodic(const Duration(milliseconds: 1500), (_) => _syncIncoming());
+  }
+
+  @override
+  void dispose() {
+    _poller?.cancel();
+    ctrl.dispose();
+    scroll.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadMessages() async {
+    try {
+      final remote = await ChatApi.getSyncMessages();
+      if (mounted) {
+        final newMsgs = <(bool, String, String, bool)>[];
+        for (final m in remote) {
+          final isSeller = m['sender'] == 'SELLER';
+          final body = m['body']?.toString() ?? '';
+          final timeStr = m['createdAt'] != null && m['createdAt'].toString().length >= 16
+              ? m['createdAt'].toString().substring(11, 16)
+              : 'Baru saja';
+          newMsgs.add((isSeller, body, timeStr, false));
+        }
+        setState(() {
+          msgs.clear();
+          msgs.addAll(newMsgs);
+        });
+        _scrollToEnd();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _syncIncoming() async {
+    try {
+      final remote = await ChatApi.getSyncMessages();
+      if (remote.length != msgs.length && mounted) {
+        final newMsgs = <(bool, String, String, bool)>[];
+        for (final m in remote) {
+          final isSeller = m['sender'] == 'SELLER';
+          final body = m['body']?.toString() ?? '';
+          final timeStr = m['createdAt'] != null && m['createdAt'].toString().length >= 16
+              ? m['createdAt'].toString().substring(11, 16)
+              : 'Baru saja';
+          newMsgs.add((isSeller, body, timeStr, false));
+        }
+        setState(() {
+          msgs.clear();
+          msgs.addAll(newMsgs);
+        });
+        _scrollToEnd();
+      }
+    } catch (_) {}
+  }
+
+  void _scrollToEnd() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (scroll.hasClients) {
+        scroll.animateTo(scroll.position.maxScrollExtent + 80,
+            duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
+      }
+    });
+  }
 
   void _send() {
     final t = ctrl.text.trim();
@@ -123,19 +212,10 @@ class _ChatState extends State<ChatScreen> {
     final mm = now.minute.toString().padLeft(2, '0');
     setState(() => msgs.add((false, t, '$hh:$mm', false)));
     ctrl.clear();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (scroll.hasClients) {
-        scroll.animateTo(scroll.position.maxScrollExtent + 80,
-            duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
-      }
-    });
-  }
+    _scrollToEnd();
 
-  @override
-  void dispose() {
-    ctrl.dispose();
-    scroll.dispose();
-    super.dispose();
+    // Kirim pesan ke backend & sinkronkan seketika ke dashboard penjual
+    ChatApi.sendSyncMessage(t);
   }
 
   Widget _bubble((bool, String, String, bool) m) {
@@ -231,19 +311,36 @@ class _ChatState extends State<ChatScreen> {
             ),
           ),
           Expanded(
-            child: ListView(controller: scroll, padding: const EdgeInsets.all(16), children: [
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                      color: C.field, borderRadius: BorderRadius.circular(20)),
-                  child: const Text('Hari Ini, 13:20',
-                      style: TextStyle(fontSize: 10, color: C.mute)),
-                ),
-              ),
-              for (final m in msgs) _bubble(m),
-            ]),
+            child: msgs.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.chat_bubble_outline, size: 48, color: C.mute.withOpacity(0.5)),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Mulai Obrolan',
+                            style: TextStyle(
+                              color: C.navy,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Tanyakan seputar kualitas ikan, garansi pengiriman, atau lelang langsung ke penjual.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: C.mute, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : ListView(controller: scroll, padding: const EdgeInsets.all(16), children: [
+                    for (final m in msgs) _bubble(m),
+                  ]),
           ),
           Container(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
@@ -401,6 +498,62 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileState extends State<ProfileScreen> {
   bool claimOpen = false;
+  Map<String, dynamic> _user = Map<String, dynamic>.from(ApiClient.instance.user ?? {});
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final latest = await UserApi.getProfile();
+      if (!mounted) return;
+      setState(() {
+        _user = Map<String, dynamic>.from(latest);
+      });
+    } catch (_) {
+      // Tetap gunakan data cache dari ApiClient jika offline
+      if (mounted) {
+        final cached = ApiClient.instance.user;
+        if (cached != null && cached.isNotEmpty) {
+          setState(() {
+            _user = Map<String, dynamic>.from(cached);
+          });
+        } else {
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            final raw = prefs.getString('local_registered_users');
+            if (raw != null) {
+              final users = jsonDecode(raw) as List;
+              if (users.isNotEmpty) {
+                final last = Map<String, dynamic>.from(users.last as Map);
+                setState(() {
+                  _user = last;
+                });
+              }
+            }
+          } catch (_) {}
+        }
+      }
+    }
+  }
+
+  Future<void> _openEditProfile() async {
+    final updated = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditProfileScreen(initialUser: _user),
+      ),
+    );
+
+    if (updated != null && mounted) {
+      setState(() {
+        _user = Map<String, dynamic>.from(updated as Map);
+      });
+    }
+  }
 
   Widget _stat(String v, String l) => Expanded(
         child: Column(children: [
@@ -426,7 +579,11 @@ class _ProfileState extends State<ProfileScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(t, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: color == Colors.red ? Colors.red : C.ink)),
+                Text(t,
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: color == Colors.red ? Colors.red : C.ink)),
                 Text(s, style: const TextStyle(fontSize: 11, color: C.mute)),
               ]),
             ),
@@ -436,15 +593,27 @@ class _ProfileState extends State<ProfileScreen> {
       );
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        body: ListView(padding: EdgeInsets.zero, children: [
-          WaveHeader(
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 18),
-                child: Column(children: [
-                  Stack(children: [
+  Widget build(BuildContext context) {
+    final rawName = _user['name'] ?? ApiClient.instance.user?['name'];
+    final rawEmail = _user['email'] ?? ApiClient.instance.user?['email'];
+    final displayName = (rawName != null && rawName.toString().trim().isNotEmpty)
+        ? rawName.toString()
+        : 'Pengguna eCupFish';
+    final displayEmail = (rawEmail != null && rawEmail.toString().trim().isNotEmpty)
+        ? rawEmail.toString()
+        : '-';
+
+    return Scaffold(
+      body: ListView(padding: EdgeInsets.zero, children: [
+        WaveHeader(
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 18),
+              child: Column(children: [
+                GestureDetector(
+                  onTap: _openEditProfile,
+                  child: Stack(children: [
                     const CircleAvatar(
                         radius: 40,
                         backgroundColor: C.skySoft,
@@ -459,179 +628,204 @@ class _ProfileState extends State<ProfileScreen> {
                       ),
                     ),
                   ]),
-                  const SizedBox(height: 8),
-                  const Text('Pasha',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18)),
-                  const Text('pasha@email.com',
-                      style: TextStyle(color: Colors.white70, fontSize: 12)),
-                ]),
-              ),
+                ),
+                const SizedBox(height: 8),
+                Text(displayName,
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18)),
+                Text(displayEmail,
+                    style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              ]),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-            child: Column(children: [
-              Box(
-                child: Row(children: [
-                  ListenableBuilder(
-                      listenable: cart,
-                      builder: (_, __) => _stat('${cart.orders.length + 12}', 'Pesanan')),
-                  _stat('4,9', 'Rating'),
-                  _stat('1', 'Klaim Aktif'),
-                ]),
-              ),
-              Box(
-                padding: EdgeInsets.zero,
-                child: Column(children: [
-                  _row(Icons.receipt_long, 'Riwayat Pesanan', '12 pesanan',
-                      () => push(context, const OrdersScreen(back: true))),
-                  const Divider(height: 1, color: C.line),
-                  _row(Icons.shield_outlined, 'Pusat Klaim Garansi Ikan Mati',
-                      'Ajukan & pantau klaim garansi',
-                      () => setState(() => claimOpen = !claimOpen),
-                      color: C.amberDark,
-                      trailing: Icon(claimOpen ? Icons.expand_less : Icons.expand_more, color: C.mute)),
-                  if (claimOpen)
-                    const Padding(
-                        padding: EdgeInsets.fromLTRB(14, 0, 14, 14), child: ClaimForm()),
-                  const Divider(height: 1, color: C.line),
-                  _row(Icons.chat_bubble_outline, 'Pesan', 'Chat dengan penjual',
-                      () => push(context, const MessagesScreen())),
-                  const Divider(height: 1, color: C.line),
-                  _row(Icons.notifications_none, 'Notifikasi', 'Lelang, pesanan, promo',
-                      () => push(context, const NotificationScreen())),
-                  const Divider(height: 1, color: C.line),
-                  _row(Icons.settings_outlined, 'Pengaturan Akun', 'Profil, alamat, keamanan',
-                      () => push(context, const EditProfileScreen())),
-                ]),
-              ),
-              Box(
-                padding: EdgeInsets.zero,
-                child: _row(Icons.logout, 'Keluar', 'Keluar dari akun ini',
-                    () => Navigator.pushAndRemoveUntil(
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          child: Column(children: [
+            Box(
+              child: Row(children: [
+                ListenableBuilder(
+                    listenable: cart,
+                    builder: (_, __) => _stat('${cart.orders.length}', 'Pesanan')),
+                _stat('5.0', 'Rating'),
+                _stat('0', 'Klaim Aktif'),
+              ]),
+            ),
+            Box(
+              padding: EdgeInsets.zero,
+              child: Column(children: [
+                ListenableBuilder(
+                    listenable: cart,
+                    builder: (_, __) => _row(Icons.receipt_long, 'Riwayat Pesanan',
+                        '${cart.orders.length} pesanan aktif',
+                        () => push(context, const OrdersScreen(back: true)))),
+                const Divider(height: 1, color: C.line),
+                _row(Icons.shield_outlined, 'Pusat Klaim Garansi Ikan Mati',
+                    'Ajukan & pantau klaim garansi',
+                    () => setState(() => claimOpen = !claimOpen),
+                    color: C.amberDark,
+                    trailing: Icon(claimOpen ? Icons.expand_less : Icons.expand_more, color: C.mute)),
+                if (claimOpen)
+                  const Padding(
+                      padding: EdgeInsets.fromLTRB(14, 0, 14, 14), child: ClaimForm()),
+                const Divider(height: 1, color: C.line),
+                _row(Icons.chat_bubble_outline, 'Pesan', 'Chat dengan penjual',
+                    () => push(context, const MessagesScreen())),
+                const Divider(height: 1, color: C.line),
+                _row(Icons.notifications_none, 'Notifikasi', 'Lelang, pesanan, promo',
+                    () => push(context, const NotificationScreen())),
+                const Divider(height: 1, color: C.line),
+                _row(Icons.settings_outlined, 'Pengaturan Akun', 'Profil, alamat, keamanan',
+                    _openEditProfile),
+              ]),
+            ),
+            Box(
+              padding: EdgeInsets.zero,
+              child: _row(Icons.logout, 'Keluar', 'Keluar dari akun ini',
+                  () async {
+                    await ApiClient.instance.clear();
+                    if (!context.mounted) return;
+                    Navigator.pushAndRemoveUntil(
                         context,
                         MaterialPageRoute(builder: (_) => const SplashScreen()),
-                        (r) => false),
-                    color: Colors.red),
-              ),
-            ]),
-          ),
-        ]),
-      );
+                        (r) => false);
+                  },
+                  color: Colors.red),
+            ),
+            const SizedBox(height: 90), // Spasi agar tidak tertutup bottom bar navigasi
+          ]),
+        ),
+      ]),
+    );
+  }
 }
 
 // ───────────── Edit Profil ─────────────
-class EditProfileScreen extends StatelessWidget {
-  const EditProfileScreen({super.key});
+class EditProfileScreen extends StatefulWidget {
+  final Map<String, dynamic>? initialUser;
+
+  const EditProfileScreen({super.key, this.initialUser});
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        body: ListView(padding: EdgeInsets.zero, children: [
-          WaveHeader(
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                child: Column(children: [
-                  const Row(children: [
-                    RoundBack(),
-                    SizedBox(width: 12),
-                    Text('Edit Profil',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18)),
-                  ]),
-                  const SizedBox(height: 10),
-                  Stack(children: [
-                    Container(
-                      width: 78,
-                      height: 78,
-                      decoration: const BoxDecoration(color: C.skySoft, shape: BoxShape.circle),
-                      child: const Icon(Icons.person, size: 44, color: Colors.white),
-                    ),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(5),
-                        decoration: const BoxDecoration(color: C.amber, shape: BoxShape.circle),
-                        child: const Icon(Icons.photo_camera, size: 12, color: C.ink),
-                      ),
-                    ),
-                  ]),
-                ]),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(22, 0, 22, 24),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _F('Nama Lengkap', 'PASHA', Icons.person_outline),
-              _F('Username', 'Pasha_betta', Icons.alternate_email),
-              _F('Email', 'pasha@email.com', Icons.mail_outline, verified: true),
-              _F('Nomor Handphone', '+62 812-3456-7890', Icons.phone_outlined),
-              const SizedBox(height: 18),
-              Btn('Simpan Profile', onTap: () {
-                ScaffoldMessenger.of(context)
-                    .showSnackBar(const SnackBar(content: Text('Perubahan disimpan')));
-                Navigator.pop(context);
-              }),
-              const SizedBox(height: 20),
-              const Row(children: [
-                Expanded(child: Divider(color: C.line)),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 10),
-                  child: Text('KEAMANAN AKUN',
-                      style: TextStyle(fontSize: 10, color: C.mute, letterSpacing: 1)),
-                ),
-                Expanded(child: Divider(color: C.line)),
-              ]),
-              const SizedBox(height: 12),
-              Box(
-                child: Row(children: [
-                  const Icon(Icons.lock_outline, color: C.blue, size: 20),
-                  const SizedBox(width: 10),
-                  const Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Kata Sandi', style: TextStyle(fontWeight: FontWeight.w700)),
-                      Text('Terakhir diubah 2 bulan lalu',
-                          style: TextStyle(fontSize: 11, color: C.mute)),
-                    ]),
-                  ),
-                  TextButton(
-                    style: TextButton.styleFrom(backgroundColor: C.field),
-                    onPressed: () => push(context, const ForgotPasswordScreen()),
-                    child: const Text('Ubah', style: TextStyle(fontWeight: FontWeight.w700)),
-                  ),
-                ]),
-              ),
-            ]),
-          ),
-        ]),
-      );
+  State<EditProfileScreen> createState() => _EditProfileScreenState();
 }
 
-class _F extends StatelessWidget {
-  final String label, value;
-  final IconData icon;
-  final bool verified;
-  const _F(this.label, this.value, this.icon, {this.verified = false});
+class _EditProfileScreenState extends State<EditProfileScreen> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _usernameCtrl;
+  late final TextEditingController _phoneCtrl;
+  late final String _email;
+
+  bool _saving = false;
 
   @override
-  Widget build(BuildContext context) =>
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        fieldLabel(label),
-        TextFormField(
-          initialValue: value,
-          decoration: fieldDec(label,
-              fill: C.field,
-              prefix: Icon(icon, size: 18, color: C.navy),
-              suffix: verified
-                  ? const Padding(
-                      padding: EdgeInsets.only(right: 12),
-                      child: Center(
-                          widthFactor: 1,
-                          child: Text('✓ Terverifikasi',
-                              style: TextStyle(color: Colors.green, fontSize: 10))))
-                  : null),
+  void initState() {
+    super.initState();
+    final u = widget.initialUser ?? ApiClient.instance.user ?? {};
+    _nameCtrl = TextEditingController(text: (u['name'] ?? '').toString());
+    _usernameCtrl = TextEditingController(text: (u['username'] ?? '').toString());
+    _phoneCtrl = TextEditingController(text: (u['phoneNumber'] ?? '').toString());
+    _email = (u['email'] ?? '').toString();
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _usernameCtrl.dispose();
+    _phoneCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _simpanProfil() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    setState(() => _saving = true);
+    try {
+      final updatedUser = await UserApi.updateProfile(
+        name: _nameCtrl.text.trim(),
+        username: _usernameCtrl.text.trim(),
+        phoneNumber: _phoneCtrl.text.trim(),
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profil berhasil diperbarui')),
+      );
+      Navigator.pop(context, updatedUser);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Column(children: [
+        const AppHeader('Edit Profil'),
+        Expanded(
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              children: [
+                fieldLabel('Nama Lengkap'),
+                TextFormField(
+                  controller: _nameCtrl,
+                  decoration: fieldDec('Masukkan nama lengkap',
+                      fill: C.field,
+                      prefix: const Icon(Icons.person_outline, size: 18, color: C.navy)),
+                  validator: (v) =>
+                      (v == null || v.trim().length < 2) ? 'Nama minimal 2 karakter' : null,
+                ),
+                fieldLabel('Username'),
+                TextFormField(
+                  controller: _usernameCtrl,
+                  decoration: fieldDec('Masukkan username',
+                      fill: C.field,
+                      prefix: const Icon(Icons.alternate_email, size: 18, color: C.navy)),
+                  validator: (v) =>
+                      (v == null || v.trim().length < 3) ? 'Username minimal 3 karakter' : null,
+                ),
+                fieldLabel('Email'),
+                TextFormField(
+                  initialValue: _email,
+                  readOnly: true,
+                  decoration: fieldDec('Email',
+                      fill: C.field,
+                      prefix: const Icon(Icons.mail_outline, size: 18, color: C.navy),
+                      suffix: const Padding(
+                        padding: EdgeInsets.only(right: 12),
+                        child: Center(
+                            widthFactor: 1,
+                            child: Text('✓ Terverifikasi',
+                                style: TextStyle(color: Colors.green, fontSize: 10))),
+                      )),
+                ),
+                fieldLabel('Nomor Telepon'),
+                TextFormField(
+                  controller: _phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  decoration: fieldDec('Contoh: 08123456789',
+                      fill: C.field,
+                      prefix: const Icon(Icons.phone_outlined, size: 18, color: C.navy)),
+                ),
+                const SizedBox(height: 20),
+                Btn(
+                  _saving ? 'Menyimpan...' : 'Simpan Perubahan',
+                  gold: true,
+                  onTap: _saving ? null : _simpanProfil,
+                ),
+              ],
+            ),
+          ),
         ),
-      ]);
+      ]),
+    );
+  }
 }

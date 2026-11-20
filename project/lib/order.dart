@@ -1,6 +1,8 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'api/api_client.dart';
+import 'api/order_api.dart';
 import 'core.dart';
 import 'extra.dart';
 import 'motion.dart';
@@ -362,6 +364,14 @@ class _CheckoutState extends State<CheckoutScreen> {
   @override
   Widget build(BuildContext context) {
     final d = cart.draft(discount: disc);
+    final u = ApiClient.instance.user;
+    final buyerName = (u?['name'] != null && u!['name'].toString().trim().isNotEmpty)
+        ? u['name'].toString()
+        : 'Pembeli eCupFish';
+    final buyerPhone = (u?['phoneNumber'] != null && u!['phoneNumber'].toString().trim().isNotEmpty)
+        ? u['phoneNumber'].toString()
+        : '0812-3456-7890';
+
     return Scaffold(
       body: Column(children: [
         const AppHeader('Checkout'),
@@ -377,11 +387,11 @@ class _CheckoutState extends State<CheckoutScreen> {
                   child: const Icon(Icons.location_on_outlined, color: C.blue),
                 ),
                 const SizedBox(width: 10),
-                const Expanded(
+                Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Berry Pop · 0812-3456-7890',
-                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
-                    Text('Jl. Merdeka No. 45, RT 03/RW 02, Rai, Malang, Jawa Timur 65162',
+                    Text('$buyerName · $buyerPhone',
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                    const Text('Jl. Merdeka No. 45, RT 03/RW 02, Pekanbaru, Riau',
                         style: TextStyle(fontSize: 11, color: C.mute)),
                   ]),
                 ),
@@ -781,6 +791,7 @@ class ProcessPaymentScreen extends StatelessWidget {
             ),
             Btn('Konfirmasi Pembayaran', onTap: () {
               final o = cart.place(draft, method);
+              OrderApi.syncOrderToDashboard(o, draft, method);
               Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (_) => DetailPesananScreen(o, justPaid: true)),
@@ -1002,7 +1013,28 @@ class OrdersScreen extends StatelessWidget {
               listenable: cart,
               builder: (context, _) {
                 if (cart.orders.isEmpty) {
-                  return const Center(child: Text('Belum ada pesanan'));
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        Container(
+                          width: 64,
+                          height: 64,
+                          decoration: const BoxDecoration(color: C.field, shape: BoxShape.circle),
+                          child: const Icon(Icons.receipt_long_outlined, size: 32, color: C.blue),
+                        ),
+                        const SizedBox(height: 14),
+                        const Text('Belum Ada Pesanan',
+                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: C.navy)),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Pesanan yang Anda buat dari katalog ikan atau hasil lelang akan tampil di sini secara real-time.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 12, color: C.mute, height: 1.4),
+                        ),
+                      ]),
+                    ),
+                  );
                 }
                 return ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 16), children: [
                   for (final o in cart.orders)
@@ -1033,11 +1065,12 @@ class OrdersScreen extends StatelessWidget {
                             if (o.step < 3)
                               TextButton(
                                   onPressed: () => cart.advance(o),
-                                  child: const Text('Lanjutkan status (demo)')),
+                                  child: const Text('Update Status')),
                           ]),
                         ]),
                       ),
                     ),
+                  const SizedBox(height: 90), // Spasi agar tidak tertutup navigation bar
                 ]);
               },
             ),
@@ -1119,6 +1152,14 @@ class _NotifState extends State<NotificationScreen> {
             )),
         Expanded(
           child: ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 16), children: [
+            if (shown.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 48),
+                child: Center(
+                  child: Text('Belum ada notifikasi.',
+                      style: TextStyle(color: C.mute)),
+                ),
+              ),
             for (final i in shown) ...[
               if (items[i].$1 != last) ...[
                 Padding(

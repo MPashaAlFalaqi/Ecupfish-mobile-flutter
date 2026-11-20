@@ -8,6 +8,7 @@ import 'api/api_client.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ApiClient.instance.load();
+  await cart.restoreLocalOrders();
   runApp(const ECupFishApp()); // gunakan pemanggilan runApp yang sudah ada
 }
 
