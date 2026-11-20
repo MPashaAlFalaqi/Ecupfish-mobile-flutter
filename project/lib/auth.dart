@@ -100,40 +100,41 @@ class _LoginState extends State<LoginScreen> {
   }
 
   void _login() async {
-  if (email.text.trim().isEmpty || pass.text.length < 6) {
-    _catatGagal(
-      'Email atau kata sandi yang kamu masukkan salah. Coba periksa kembali, atau reset kata sandi jika lupa.',
-    );
-    return;
-  }
-
-  setState(() {
-    isLoading = true;
-    error = null;
-  });
-
-  // Panggil API Login ke Express Backend
-  String? token = await AuthService.login(email.text.trim(), pass.text);
-
-  if (!mounted) return;
-  setState(() => isLoading = false);
-
-  if (token != null) {
-    // Cek role dari payload JWT
-    final role = _ambilRoleDariToken(token);
-    if (role != null && role != 'BUYER') {
-      setState(() {
-        error = 'Akun bukan pembeli. Gunakan dashboard web untuk akun seller/admin.';
-      });
+    if (email.text.trim().isEmpty || pass.text.length < 6) {
+      _catatGagal(
+        'Email atau kata sandi yang kamu masukkan salah. Coba periksa kembali, atau reset kata sandi jika lupa.',
+      );
       return;
     }
 
-    fails = 0;
-    _enterApp(context);
-  } else {
-    _catatGagal('Email atau kata sandi yang kamu masukkan salah.');
+    setState(() {
+      isLoading = true;
+      error = null;
+    });
+
+    // Panggil API Login ke Express Backend
+    final res = await AuthService.login(email.text.trim(), pass.text);
+
+    if (!mounted) return;
+    setState(() => isLoading = false);
+
+    if (res.success && res.token != null) {
+      // Cek role jika ada di token
+      final role = _ambilRoleDariToken(res.token!);
+      if (role != null && role != 'BUYER') {
+        setState(() {
+          error =
+              'Akun Anda terdaftar sebagai ${role == 'ADMIN' ? 'Pembudidaya / Penjual' : role}. Aplikasi mobile ini khusus untuk Pembeli. Silakan masuk melalui Dashboard Web.';
+        });
+        return;
+      }
+
+      fails = 0;
+      _enterApp(context);
+    } else {
+      _catatGagal(res.message ?? 'Email atau kata sandi yang kamu masukkan salah.');
+    }
   }
-}
 
 void _catatGagal(String pesan) {
   fails++;
@@ -193,14 +194,31 @@ String? _ambilRoleDariToken(String token) {
   @override
   Widget build(BuildContext context) => Scaffold(
         body: Column(children: [
-          AppHeader('Masuk Akun',
-              bottom: Image.asset('assets/images/logo.png', height: 150)),
+          const AppHeader('Masuk Akun Pembeli'),
           Expanded(
-            child: ListView(padding: const EdgeInsets.fromLTRB(24, 0, 24, 24), children: [
-              const Center(
-                  child: Text('Silakan masuk ke akun Anda',
-                      style: TextStyle(color: C.navy, fontSize: 17, fontWeight: FontWeight.w500))),
+            child: ListView(padding: const EdgeInsets.fromLTRB(24, 12, 24, 32), children: [
+              Center(
+                child: Container(
+                  width: 58,
+                  height: 58,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [BoxShadow(color: C.shadow, blurRadius: 8, offset: Offset(0, 3))],
+                  ),
+                  child: ClipOval(child: Image.asset('assets/images/logo.png', fit: BoxFit.cover)),
+                ),
+              ),
               const SizedBox(height: 10),
+              const Center(
+                  child: Text('Masuk Akun Pembeli',
+                      style: TextStyle(color: C.navy, fontSize: 18, fontWeight: FontWeight.w700))),
+              const SizedBox(height: 3),
+              const Center(
+                  child: Text(
+                'Aplikasi mobile khusus untuk Pembeli & Penggemar Cupang.',
+                style: TextStyle(color: C.mute, fontSize: 12),
+              )),
+              const SizedBox(height: 12),
               if (error != null) errorBanner(error!),
               LField('Email',
                   hint: 'Masukkan Email Anda',
@@ -227,7 +245,7 @@ String? _ambilRoleDariToken(String token) {
               const OrDivider(),
               const SizedBox(height: 14),
               GoldOutlineBtn('Google', onTap: () => _enterApp(context)),
-              const SizedBox(height: 6),
+              const SizedBox(height: 10),
               LinkLine('Belum punya akun?', 'Daftar di sini.',
                   onTap: () => push(context, const RegisterScreen())),
             ]),
@@ -279,7 +297,7 @@ class _RegisterState extends State<RegisterScreen> {
 
     setState(() => isLoading = true);
 
-    bool success = await AuthService.register(
+    final result = await AuthService.register(
       name: name.text.trim(),
       email: email.text.trim(),
       phone: phone.text.trim(),
@@ -288,33 +306,50 @@ class _RegisterState extends State<RegisterScreen> {
 
     setState(() => isLoading = false);
 
-    if (success) {
+    if (result.success) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Akun berhasil dibuat. Silakan masuk.')),
       );
       Navigator.pop(context);
     } else {
-      setState(() => error = 'Registrasi gagal. Email mungkin sudah digunakan.');
+      setState(() => error = result.message ?? 'Registrasi gagal. Silakan periksa kembali data Anda.');
     }
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
         body: Column(children: [
-          AppHeader('Daftar Akun',
-              bottom: Image.asset('assets/images/logo.png', height: 150)),
+          const AppHeader('Daftar Akun Pembeli'),
           Expanded(
             child: ListView(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                padding: const EdgeInsets.fromLTRB(24, 12, 24, 36),
                 children: [
+                  Center(
+                    child: Container(
+                      width: 58,
+                      height: 58,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [BoxShadow(color: C.shadow, blurRadius: 8, offset: Offset(0, 3))],
+                      ),
+                      child: ClipOval(child: Image.asset('assets/images/logo.png', fit: BoxFit.cover)),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
                   const Center(
-                      child: Text('Daftarkan Akun Anda',
+                      child: Text('Daftarkan Akun Pembeli',
                           style: TextStyle(
                               color: C.navy,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w500))),
-                  const SizedBox(height: 4),
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700))),
+                  const SizedBox(height: 3),
+                  const Center(
+                      child: Text(
+                    'Aplikasi mobile khusus untuk Pembeli & Penggemar Cupang.',
+                    style: TextStyle(color: C.mute, fontSize: 12),
+                  )),
+                  const SizedBox(height: 12),
                   if (error != null) errorBanner(error!),
                   LField('Nama Lengkap',
                       hint: 'Masukkan nama lengkap anda', controller: name),
@@ -343,7 +378,7 @@ class _RegisterState extends State<RegisterScreen> {
                   const OrDivider(),
                   const SizedBox(height: 14),
                   GoldOutlineBtn('Google', onTap: () => _enterApp(context)),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 10),
                   LinkLine('Sudah punya akun?', 'Masuk',
                       onTap: () => Navigator.pop(context)),
                 ]),

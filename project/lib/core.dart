@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'api/config.dart';
 import 'motion.dart';
 
@@ -245,6 +247,38 @@ class Cart extends ChangeNotifier {
   void advance(Order o) {
     if (o.step < 3) o.step++;
     notifyListeners();
+  }
+
+  Future<void> restoreLocalOrders() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('local_saved_orders');
+      if (raw != null) {
+        final list = jsonDecode(raw) as List;
+        for (final item in list) {
+          final id = item['id']?.toString() ?? '';
+          if (orders.any((existing) => existing.id == id)) continue;
+          final o = Order(
+            id,
+            item['metode']?.toString() ?? 'Transfer Bank',
+            [item['ikan']?.toString() ?? 'Ikan Cupang'],
+            const [],
+            item['hargaSatuan'] as int? ?? 50000,
+            item['ongkir'] as int? ?? 25000,
+            15000,
+            0,
+            (item['hargaSatuan'] as int? ?? 50000) + (item['ongkir'] as int? ?? 25000),
+            DateTime.fromMillisecondsSinceEpoch(
+                item['ts'] as int? ?? DateTime.now().millisecondsSinceEpoch),
+            step: item['status'] == 'Dikirim'
+                ? 2
+                : (item['status'] == 'Selesai' ? 3 : 0),
+          );
+          orders.add(o);
+        }
+        notifyListeners();
+      }
+    } catch (_) {}
   }
 }
 

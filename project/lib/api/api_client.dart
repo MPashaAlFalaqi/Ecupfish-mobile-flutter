@@ -27,6 +27,7 @@ class ApiClient {
   Future<bool>? _refreshing;
 
   bool get loggedIn => _token != null;
+  String? get token => _token;
   String? get refreshToken => _refreshToken;
 
   Future<void> load() async {

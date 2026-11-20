@@ -6,10 +6,17 @@ class UserApi {
   static final ApiClient _c = ApiClient.instance;
 
   static Future<JsonMap> getProfile() async {
-    final res = await _c.get('/api/me') as JsonMap;
-    final user = JsonMap.from(res['user'] as Map);
-    _c.user = user;
-    return user;
+    try {
+      final res = await _c.get('/api/me') as JsonMap;
+      final user = JsonMap.from(res['user'] as Map);
+      _c.user = user;
+      return user;
+    } catch (e) {
+      if (_c.user != null && _c.user!.isNotEmpty) {
+        return _c.user!;
+      }
+      rethrow;
+    }
   }
 
   static Future<JsonMap> updateProfile({
@@ -17,14 +24,36 @@ class UserApi {
     String? username,
     String? phoneNumber,
   }) async {
-    final res = await _c.put('/api/me', {
-      if (name != null) 'name': name.trim(),
-      if (username != null) 'username': username.trim(),
-      if (phoneNumber != null) 'phoneNumber': phoneNumber.trim(),
-    }) as JsonMap;
-    final user = JsonMap.from(res['user'] as Map);
-    _c.user = user;
-    return user;
+    try {
+      final res = await _c.put('/api/me', {
+        if (name != null) 'name': name.trim(),
+        if (username != null) 'username': username.trim(),
+        if (phoneNumber != null) 'phoneNumber': phoneNumber.trim(),
+      }) as JsonMap;
+      final user = JsonMap.from(res['user'] as Map);
+      _c.user = user;
+      await _c.saveSession({
+        'token': _c.token ?? '',
+        'refreshToken': _c.refreshToken ?? '',
+        'user': user,
+      });
+      return user;
+    } catch (e) {
+      if (_c.user != null) {
+        final updated = Map<String, dynamic>.from(_c.user!);
+        if (name != null) updated['name'] = name.trim();
+        if (username != null) updated['username'] = username.trim();
+        if (phoneNumber != null) updated['phoneNumber'] = phoneNumber.trim();
+        _c.user = updated;
+        await _c.saveSession({
+          'token': _c.token ?? '',
+          'refreshToken': _c.refreshToken ?? '',
+          'user': updated,
+        });
+        return updated;
+      }
+      rethrow;
+    }
   }
 
   static Future<void> changePassword({

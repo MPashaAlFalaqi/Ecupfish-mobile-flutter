@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'account.dart';
+import 'auction_api.dart';
 import 'core.dart';
 import 'extra.dart';
 import 'motion.dart';
@@ -508,6 +511,7 @@ class _HomeState extends State<HomeScreen> {
             ],
           ),
         ),
+        const SizedBox(height: 90), // Spasi agar produk paling bawah tidak tertutup navigation bar
       ],
     ));
   }
@@ -1122,34 +1126,102 @@ class AuctionScreen extends StatefulWidget {
 
 class _AuctionState extends State<AuctionScreen> {
   late final Timer _timer;
+  Timer? _syncTimer;
   int secs = 322;
-  int current = 160000;
+  int current = 150000;
   int step = 10000;
   bool wonShown = false;
-  final bids = <MapEntry<String, int>>[
-    const MapEntry('User B', 160000),
-    const MapEntry('User A', 150000),
-  ];
+  int auctionId = 1;
+  String lotTitle = 'Lelang Cupang Live';
+  String sellerName = 'Betta King Jakarta · Sesi #1';
+  final bids = <MapEntry<String, int>>[];
 
   bool get ended => secs == 0;
 
   @override
   void initState() {
     super.initState();
+    _loadAuction();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted || secs == 0) return;
       setState(() => secs--);
-      if (secs == 0 && bids.first.key == 'Anda' && !wonShown) {
+      final myName = ApiClient.instance.user?['name']?.toString() ?? 'Anda';
+      if (secs == 0 && bids.isNotEmpty && (bids.first.key == 'Anda' || bids.first.key == myName) && !wonShown) {
         wonShown = true;
         push(context, MenangLelangScreen(amount: current));
       }
     });
+
+    _syncTimer = Timer.periodic(const Duration(seconds: 2), (_) => _syncAuctionFromStorage());
   }
 
   @override
   void dispose() {
     _timer.cancel();
+    _syncTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadAuction() async {
+    // 1. Coba ambil dari backend jika aktif
+    try {
+      final list = await AuctionApi.list();
+      if (list.isNotEmpty && mounted) {
+        final a = list.first;
+        auctionId = a['id'] as int? ?? 1;
+        final fish = a['product']?['name'] ?? a['title'] ?? 'Lelang Cupang Live';
+        final seller = a['seller']?['name'] ?? 'Betta King Jakarta';
+        final currPrice = a['currentPrice'] as int? ?? a['startPrice'] as int? ?? 160000;
+        final endsAt = a['endsAt'] != null ? DateTime.tryParse(a['endsAt']) : null;
+        final remSecs = endsAt != null ? endsAt.difference(DateTime.now()).inSeconds : 300;
+        setState(() {
+          lotTitle = fish.toString();
+          sellerName = '$seller · Sesi #$auctionId';
+          current = currPrice;
+          secs = remSecs > 0 ? remSecs : 0;
+        });
+      }
+    } catch (_) {}
+
+    // 2. Cek penyimpanan dashboard state
+    _syncAuctionFromStorage();
+  }
+
+  Future<void> _syncAuctionFromStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('ecupfish_dashboard_zero_v3') ??
+          prefs.getString('ecupfish_dashboard_state_v1');
+      if (raw != null && mounted) {
+        final state = jsonDecode(raw);
+        final sessions = state['sesi'] as List? ?? [];
+        if (sessions.isNotEmpty) {
+          final live = sessions.firstWhere(
+            (s) => s['status'] == 'Live',
+            orElse: () => sessions.first,
+          );
+          if (live != null) {
+            final bList = live['bids'] as List? ?? [];
+            final topBids = <MapEntry<String, int>>[];
+            for (final b in bList) {
+              topBids.add(MapEntry(b['nama']?.toString() ?? 'Penawar', b['jumlah'] as int? ?? 0));
+            }
+            setState(() {
+              lotTitle = (live['produk'] ?? lotTitle).toString();
+              sellerName = 'Betta King Jakarta · Sesi #${live['id'] ?? 1}';
+              if (live['sisaDetik'] != null && (live['sisaDetik'] as int) > 0) {
+                secs = live['sisaDetik'] as int;
+              }
+              if (topBids.isNotEmpty) {
+                bids.clear();
+                bids.addAll(topBids);
+                current = topBids.first.value;
+              }
+            });
+          }
+        }
+      }
+    } catch (_) {}
   }
 
   String get clock {
@@ -1157,12 +1229,38 @@ class _AuctionState extends State<AuctionScreen> {
     return '${two(secs ~/ 3600)}:${two(secs % 3600 ~/ 60)}:${two(secs % 60)}';
   }
 
-  void _bid() {
+  void _bid() async {
     if (ended) return;
+    final user = ApiClient.instance.user;
+    final myName = (user?['name'] != null && user!['name'].toString().trim().isNotEmpty)
+        ? user['name'].toString()
+        : 'Sinta';
+    final nextAmount = current + step;
+
     setState(() {
-      current += step;
-      bids.insert(0, MapEntry('Anda', current));
+      current = nextAmount;
+      bids.insert(0, MapEntry(myName, current));
+      if (secs < 30) secs += 30; // Anti-sniping
     });
+
+    // 1. Kirim ke backend jika tersedia
+    try {
+      await AuctionApi.placeBid(auctionId, nextAmount);
+    } catch (_) {}
+
+    // 2. Broadcast ke dashboard seller
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        'ecupfish_new_bid_event',
+        jsonEncode({
+          'sesiId': '$auctionId',
+          'nama': myName,
+          'jumlah': nextAmount,
+          'ts': DateTime.now().millisecondsSinceEpoch,
+        }),
+      );
+    } catch (_) {}
   }
 
   Widget _pill(Widget child, {Color? bg, Color? border}) => Container(
@@ -1177,7 +1275,7 @@ class _AuctionState extends State<AuctionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final winner = bids.first;
+    final winner = bids.isNotEmpty ? bids.first : const MapEntry('Belum ada', 0);
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -1192,13 +1290,13 @@ class _AuctionState extends State<AuctionScreen> {
               child: ListView(padding: const EdgeInsets.fromLTRB(16, 10, 16, 16), children: [
                 Row(children: [
                   if (!widget.tab) ...[const RoundBack(), const SizedBox(width: 12)],
-                  const Expanded(
+                  Expanded(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Lelang Halfmoon Multi',
-                          style: TextStyle(
+                      Text(lotTitle,
+                          style: const TextStyle(
                               color: Colors.white, fontWeight: FontWeight.w700, fontSize: 17)),
-                      Text('Betta King Jakarta · Lot #12',
-                          style: TextStyle(color: Colors.white70, fontSize: 11)),
+                      Text(sellerName,
+                          style: const TextStyle(color: Colors.white70, fontSize: 11)),
                     ]),
                   ),
                   GestureDetector(
@@ -1310,6 +1408,17 @@ class _AuctionState extends State<AuctionScreen> {
                   Pill('${bids.length} bid'),
                 ]),
                 const SizedBox(height: 10),
+                if (bids.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: const Color(0x22FFFFFF),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Text('Belum ada tawaran masuk. Jadilah penawar pertama!',
+                        style: TextStyle(color: Colors.white70, fontSize: 12)),
+                  ),
                 for (var i = 0; i < bids.take(5).length; i++)
                   Container(
                     margin: const EdgeInsets.only(bottom: 8),
@@ -1324,7 +1433,7 @@ class _AuctionState extends State<AuctionScreen> {
                         radius: 15,
                         backgroundColor: i == 0 && ended ? C.amber : Colors.white,
                         child: Text(
-                            bids[i].key == 'Anda' ? 'A' : bids[i].key.substring(bids[i].key.length - 1),
+                            bids[i].key.isNotEmpty ? bids[i].key[0].toUpperCase() : 'U',
                             style: const TextStyle(
                                 color: C.navy, fontWeight: FontWeight.w800, fontSize: 12)),
                       ),
@@ -1454,6 +1563,7 @@ class _AuctionState extends State<AuctionScreen> {
                       ]),
                       const SizedBox(height: 10),
                       Btn('Tempatkan Bid', onTap: _bid),
+                      if (widget.tab) const SizedBox(height: 74), // Spasi agar tidak tertutup navigation bar
                     ]),
             ),
           ),
